@@ -9,6 +9,8 @@ TagManager:
   - coins
   - palang
   - buff
+  - obstacle_deco
+  - destroyer
   layers:
   - Default
   - TransparentFX

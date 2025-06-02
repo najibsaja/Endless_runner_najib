@@ -1,6 +1,7 @@
 using NUnit.Framework.Internal;
 using System;
 using System.Collections;
+using Unity.Mathematics;
 using Unity.VisualScripting;
 using UnityEngine;
 using UnityEngine.Assertions.Comparers;
@@ -9,9 +10,11 @@ public class PlayerMovements : MonoBehaviour
 {
     public float sideSPD;
     public float jumpSPD;
+    public float speed_movelane;
 
     bool melompat;
     public int coin_counter;
+    public int Quiz_threshold;
     public bool loseState;
     public Animator animator;
 
@@ -31,25 +34,51 @@ public class PlayerMovements : MonoBehaviour
 
     public bool BUFFactive;
 
+    // boolen tombol
+    public bool tombol_movementSwipe;
+    public bool tombol_movementKeyboard;
+
+    //popup quiz
+    public GameObject Q1;
+
     private GameObject player;
 
+    //keperluan untuk move pesawat ke kanan dan ke kiri
+    private Quaternion keKiri;
+    private Quaternion keKanan;
+    private Quaternion normal;
 
-    Rigidbody rb;
+    public float rotationSpeed = 2f;
+
+ Rigidbody rb;
 
     // Start is called once before the first execution of Update after the MonoBehaviour is created
     void Start()
     {
+        //state movements
         melompat = false;
         loseState = false;
         updatePos = new Vector3(transform.position.x, transform.position.y, -11);
 
         player = this.gameObject;
 
+        //pembatas
         bataskanan = false;
         bataskiri = false;
         ISstanding = true;
 
+        //buff
         BUFFactive = false;
+
+        //setup rotasi
+        Vector3 rotate_kanan = new Vector3(transform.eulerAngles.x, transform.eulerAngles.y, -35f);
+        Vector3 rotate_kiri = new Vector3(transform.eulerAngles.x, transform.eulerAngles.y, 35f);
+        Vector3 rotate_normal = new Vector3(transform.eulerAngles.x, transform.eulerAngles.y, 0f);
+
+        keKanan = quaternion.Euler(rotate_kanan);
+        keKiri = quaternion.Euler(rotate_kiri);
+        normal = quaternion.Euler(rotate_normal);
+
 
         rb = GetComponent<Rigidbody>();
     }
@@ -57,9 +86,17 @@ public class PlayerMovements : MonoBehaviour
     // Update is called once per frame
     void Update()
     {
-        movement_via_touch();
+        if (tombol_movementSwipe && !tombol_movementKeyboard)
+        {
+            movement_via_touch();
+        }
 
-        transform.position = Vector3.Lerp(transform.position, updatePos, sideSPD * Time.deltaTime);
+        if (tombol_movementKeyboard && !tombol_movementSwipe)
+        {
+            movement_via_keyboard();
+        }
+       
+        transform.position = Vector3.Lerp(transform.position, updatePos, speed_movelane * Time.deltaTime);
 
         if (BUFFactive)
         {
@@ -68,6 +105,18 @@ public class PlayerMovements : MonoBehaviour
         else
         {
             rb.useGravity = true;
+        }
+
+        if (Quiz_threshold == 5)
+        {
+            Quiz_threshold = 0;
+            Time.timeScale = 0;
+            Q1.SetActive(true);
+        }
+
+        if (canSwipe)
+        {
+            transform.rotation = Quaternion.Lerp(transform.rotation, normal, Time.deltaTime * rotationSpeed);
         }
         
     }
@@ -78,6 +127,7 @@ public class PlayerMovements : MonoBehaviour
         {
             Destroy(collision.gameObject);
             coin_counter += 1;
+            Quiz_threshold += 1;
             return;
         }
 
@@ -147,6 +197,23 @@ public class PlayerMovements : MonoBehaviour
         }
     }
 
+    void movement_via_keyboard()
+    {
+        if (Input.GetKeyDown(KeyCode.D) && !bataskanan && canSwipe)
+        {
+            left();
+            StartCoroutine(SwipeCooldown());
+            transform.rotation = Quaternion.Lerp(transform.rotation, keKiri, Time.deltaTime * rotationSpeed);
+        }
+
+        if (Input.GetKeyDown(KeyCode.A) && !bataskiri && canSwipe)
+        {
+            right();
+            StartCoroutine(SwipeCooldown());
+            transform.rotation = Quaternion.Lerp(transform.rotation, keKanan, Time.deltaTime * rotationSpeed);
+        }
+    }
+
     void right()
     {
         //transform.Translate(-num * Time.deltaTime, 0, 0);
@@ -189,6 +256,7 @@ public class PlayerMovements : MonoBehaviour
         canSwipe = false;
         yield return new WaitForSeconds(swipeCooldown);
         canSwipe = true;
+        
     }
 
     IEnumerator buffCD()
